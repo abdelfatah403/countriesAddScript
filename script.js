@@ -1,3 +1,4 @@
+import { State } from 'country-state-city';
 import dotenv from 'dotenv';
 import { createRequire } from 'module';
 import mongoose from 'mongoose';
@@ -64,13 +65,19 @@ const seedCountries = async () => {
             const names = {
                 en: country.name.common,
                 fr: country.translations?.fra?.common || country.name.common,
-                de: country.translations?.deu?.common || country.name.common,
-                ru: country.translations?.rus?.common || country.name.common,
+                gr: country.translations?.deu?.common || country.name.common,
+                rs: country.translations?.rus?.common || country.name.common,
                 ar: country.translations?.ara?.common || country.name.common,
             };
 
             // Check if Middle Eastern
             const middleEastern = middleEasternCountries.includes(iso2);
+
+            // Get states/provinces for this country
+            const countryStates = State.getStatesOfCountry(iso2);
+            const states = countryStates.map(state => ({
+                name: state.name,
+            }));
 
             return {
                 iso2,
@@ -78,7 +85,7 @@ const seedCountries = async () => {
                 names,
                 middleEastern,
                 flag,
-                states: [], // We can populate states later if needed
+                states,
             };
         });
 
@@ -88,14 +95,25 @@ const seedCountries = async () => {
 
         // Show some stats
         const middleEastCount = result.filter(c => c.middleEastern).length;
+        const totalStates = result.reduce((sum, c) => sum + c.states.length, 0);
         console.log(`📊 Middle Eastern countries: ${middleEastCount}`);
         console.log(`📊 Other countries: ${result.length - middleEastCount}`);
+        console.log(`📊 Total states/provinces: ${totalStates}`);
 
         // Show some examples
-        console.log('\n📋 Sample countries:');
+        console.log('\n📋 Sample countries with states:');
         const samples = await Country.find({ middleEastern: true }).limit(5);
         samples.forEach(c => {
-            console.log(`   ${c.flag} ${c.names.en} (${c.names.ar}) - ${c.iso2}`);
+            console.log(
+                `   ${c.flag} ${c.names.en} (${c.names.ar}) - ${c.iso2} | States: ${c.states.length}`
+            );
+            if (c.states.length > 0) {
+                const stateNames = c.states
+                    .slice(0, 3)
+                    .map(s => s.name)
+                    .join(', ');
+                console.log(`      → ${stateNames}${c.states.length > 3 ? '...' : ''}`);
+            }
         });
 
         console.log('\n✅ Script completed successfully!');
